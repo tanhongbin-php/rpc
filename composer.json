@@ -1,0 +1,13 @@
+{
+  "name": "thb/rpc",
+  "type": "library",
+  "license": "MIT",
+  "description": "Webman plugin thb/rpc",
+  "require": {
+  },
+  "autoload": {
+    "psr-4": {
+      "Thb\\Rpc\\": "src"
+    }
+  }
+}
