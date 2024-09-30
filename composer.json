@@ -4,6 +4,7 @@
   "license": "MIT",
   "description": "Webman plugin thb/rpc",
   "require": {
+    "php": ">=7.2"
   },
   "autoload": {
     "psr-4": {
