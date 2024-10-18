@@ -16,6 +16,7 @@
 namespace Thb\Rpc\Process;
 
 use support\Log;
+use support\Container;
 use Workerman\Worker;
 use Workerman\Connection\TcpConnection;
 use support\exception\BusinessException;
@@ -31,6 +32,8 @@ class Rpc
     protected $appDir;
 
     protected $middleware = [];
+
+    protected $request = [];
 
     /**
      * StompConsumer constructor.
@@ -60,12 +63,17 @@ class Rpc
             $connection->close();
             return false;
         }
+        $this->request = [
+            'ip' => $connection->getRemoteIp(),
+            'port' => $connection->getRemotePort(),
+        ];
     }
 
     public function onMessage(TcpConnection $connection, $data)
     {
         static $instances = [];
-        $start_time = microtime(true);
+        static $middlewares = [];
+
         $logType = 'info';
         try {
             //接受请求数据
@@ -98,33 +106,47 @@ class Rpc
             //获取参数
             $args = $data['args'] ?? [];
 
-            foreach ($this->middleware as $middleware) {
-                call_user_func_array([$middleware, 'process'], [$this->appDir, $data]);
-            }
-
-//            //表单验证
-//            $validateClass = $this->appDir . '\\' . strtolower(isset($data['app']) ? $data['app'] . '\\' : '') . 'validate\\' . strtolower($data['class'] ?? '') . '\\' . ucfirst($data['method']);
-//            // Validate class existence
-//            if (class_exists($validateClass)) {
-//                $validator = new $validateClass;
-//                // Perform form data validation
-//                if ($validator->switch == 'on' && !$validator->check($args)) {
-//                    throw new BusinessException(422,$validator->getError());
-//                }
-//            }
-
             if (!isset($instances[$class])) {
                 $instances[$class] = new $class; // 缓存类实例，避免重复初始化
             }
 
-            $json = call_user_func_array([$instances[$class], $method], [$args]);
+            // 使用示例
+            $rpc = Container::get('Thb\Rpc\Rpclication');
+
+            foreach ($this->middleware as $middleware) {
+                if(!class_exists($middleware)){
+                    continue;
+                }
+                if (isset($middlewares[$middleware])) {
+                    continue;
+                }
+                $middlewares[$middleware] = $middleware; // 缓存中间件类实例，避免重复初始化
+                $rpc->use(new $middleware); // 添加中间件
+            }
+
+            //请求数据
+            $this->request['app_dir'] = $this->appDir;
+            $this->request['data'] = $data;
+
+            // 处理请求 输出响应
+            $json = $rpc->handle($this->request, function() use($instances, $class, $method, $args) {
+                try {
+                    return call_user_func_array([$instances[$class], $method], [$args]);
+                } catch (BusinessException $exception) {
+                    return ['code' => $exception->getCode(), 'msg' => $exception->getMessage()];
+                } catch (\Throwable $exception) {
+                    return ['code' => 500, 'msg' => ['errMessage'=>$exception->getMessage(), 'errCode'=>$exception->getCode(), 'errFile'=>$exception->getFile(), 'errLine'=>$exception->getLine()]];
+                }
+            });
+            $send = json_encode($json);
         } catch (BusinessException $exception) {
             $json = ['code' => $exception->getCode(), 'msg' => $exception->getMessage()];
+            $send = $this->log($connection, $logType, $start_time, $data, $json);
         } catch (\Throwable $exception) {
-            $json = ['code' => 500, 'msg' => ['errMessage'=>$exception->getMessage(), 'errCode'=>$exception->getCode(), 'errFile'=>$exception->getFile(), 'errLine'=>$exception->getLine()]];
+            $json = ['code' => 501, 'msg' => ['errMessage'=>$exception->getMessage(), 'errCode'=>$exception->getCode(), 'errFile'=>$exception->getFile(), 'errLine'=>$exception->getLine()]];
             $logType = 'error';
+            $send = $this->log($connection, $logType, $start_time, $data, $json);
         }
-        $send = $this->log($connection, $logType, $start_time, $data, $json);
         $connection->send($send);
     }
 
@@ -137,12 +159,10 @@ class Rpc
     private function log(object $connection, string $logType, float $start_time, array $data, array $json) : string
     {
         try {
-            $time_diff = substr(strval((microtime(true) - $start_time) * 1000), 0, 7);
-            $log = $connection->getRemoteIp() . ':' . $connection->getRemotePort() . " [{$time_diff}ms] [rpc/log]";
+            $log = $connection->getRemoteIp() . ':' . $connection->getRemotePort() . " [rpc/log]";
             Log::channel('plugin.thb.rpc.default')->$logType($log, ['request' => $data, 'response' => $json]);
-            !envs('APP_DEBUG', false) && $json['msg'] = 'Server internal error';
         } catch (\Throwable $exception) {
-            $json = ['code' => 501, 'msg' => $exception->getMessage()];
+            $json = ['code' => 502, 'msg' => $exception->getMessage()];
         }
         return json_encode($json);
     }
