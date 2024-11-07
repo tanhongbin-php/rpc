@@ -92,17 +92,7 @@ class Rpc
             if (!method_exists($class, $method)) {
                 throw new BusinessException('method not found',404);
             }
-
-            //验签（ip=客户端ip地址&appSecret=rpc配置的秘钥,最后用md5加密，转大写）
-            $ipConfig = $this->ipConfig;
-            $dontReport = $ipConfig['dontReport'] ?? [];
-            if(!in_array($connection->getRemoteIp(), $dontReport)){
-                $sign = $data['sign'] ?? '';
-                $signRpc = strtoupper(md5('ip=' . $connection->getRemoteIp() . '&appSecret=' . $ipConfig['appSecret']));
-                if($sign != $signRpc){
-                    throw new BusinessException('signature verification failed', 401);
-                }
-            }
+            
             //获取参数
             $args = $data['args'] ?? [];
 
