@@ -8,8 +8,6 @@ return [
         'reusePort' => true,
         // 进程类构造函数参数，这里为 process\Rpc::class 类的构造函数参数 （可选）
         'constructor' => [
-            // app目录
-            'appDir' => 'rpc',
             //类似中间件
             'middleware' => []
         ],
