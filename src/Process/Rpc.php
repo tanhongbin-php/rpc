@@ -19,6 +19,7 @@ use support\Log;
 use support\Container;
 use Workerman\Worker;
 use Workerman\Connection\TcpConnection;
+use Workerman\Connection\AsyncTcpConnection;
 use support\exception\BusinessException;
 
 /**
@@ -28,9 +29,7 @@ use support\exception\BusinessException;
 class Rpc
 {
     protected $ipConfig;
-
-    protected $appDir;
-
+    
     protected $middleware = [];
 
     protected $request = [];
@@ -39,9 +38,8 @@ class Rpc
      * StompConsumer constructor.
      * @param string $consumer_dir
      */
-    public function __construct(string $appDir = '', array $middleware = [])
+    public function __construct(array $middleware = [])
     {
-        $this->appDir = $appDir;
         $this->middleware = $middleware;
     }
 
@@ -83,8 +81,8 @@ class Rpc
                 throw new BusinessException('parameter exception', 404);
             }
 
-            $class = $this->appDir . '\\' . strtolower(isset($data['app']) ? $data['app'] . '\\' : '') . 'controller\\' . ucwords($data['class'] ?? '') . 'Controller';
-            if (!class_exists($class)) {
+            $class = $data['class'] ?? '';
+            if ($class === '' || !class_exists($class)) {
                 throw new BusinessException('class not found', 404);
             }
 
@@ -92,7 +90,7 @@ class Rpc
             if (!method_exists($class, $method)) {
                 throw new BusinessException('method not found',404);
             }
-            
+
             //获取参数
             $args = $data['args'] ?? [];
 
@@ -102,20 +100,16 @@ class Rpc
 
             // 使用示例
             $rpc = Container::get('Thb\Rpc\Rpclication');
-
-            foreach ($this->middleware as $middleware) {
-                if(!class_exists($middleware)){
-                    continue;
+            if (empty($middlewares)) {
+                foreach ($this->middleware as $middleware) {
+                    if(!class_exists($middleware)){
+                        continue;
+                    }
+                    $rpc->use(new $middleware); // 添加中间件
+                    $middlewares[$middleware] = $middleware; // 缓存中间件类实例，避免重复初始化
                 }
-                if (isset($middlewares[$middleware])) {
-                    continue;
-                }
-                $middlewares[$middleware] = $middleware; // 缓存中间件类实例，避免重复初始化
-                $rpc->use(new $middleware); // 添加中间件
             }
 
-            //请求数据
-            $this->request['app_dir'] = $this->appDir;
             $this->request['data'] = $data;
 
             // 处理请求 输出响应
@@ -131,11 +125,11 @@ class Rpc
             $send = json_encode($json);
         } catch (BusinessException $exception) {
             $json = ['code' => $exception->getCode(), 'msg' => $exception->getMessage()];
-            $send = $this->log($connection, $logType, $start_time, $data, $json);
+            $send = $this->log($connection, $logType, $data, $json);
         } catch (\Throwable $exception) {
             $json = ['code' => 501, 'msg' => ['errMessage'=>$exception->getMessage(), 'errCode'=>$exception->getCode(), 'errFile'=>$exception->getFile(), 'errLine'=>$exception->getLine()]];
             $logType = 'error';
-            $send = $this->log($connection, $logType, $start_time, $data, $json);
+            $send = $this->log($connection, $logType, $data, $json);
         }
         $connection->send($send);
     }
@@ -146,11 +140,11 @@ class Rpc
 //        Log::channel('rpc')->info($log);
     }
 
-    private function log(object $connection, string $logType, float $start_time, array $data, array $json) : string
+    private function log(object $connection, string $logType, array $data, array $json) : string
     {
         try {
             $log = $connection->getRemoteIp() . ':' . $connection->getRemotePort() . " [rpc/log]";
-            Log::channel('plugin.thb.rpc.default')->$logType($log, ['request' => $data, 'response' => $json]);
+            Log::channel('default')->$logType($log, ['request' => $data, 'response' => $json]);
         } catch (\Throwable $exception) {
             $json = ['code' => 502, 'msg' => $exception->getMessage()];
         }
