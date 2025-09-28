@@ -19,7 +19,6 @@ use support\Log;
 use support\Container;
 use Workerman\Worker;
 use Workerman\Connection\TcpConnection;
-use Workerman\Connection\AsyncTcpConnection;
 use support\exception\BusinessException;
 
 /**

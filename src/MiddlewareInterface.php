@@ -4,5 +4,5 @@ namespace Thb\Rpc;
 
 interface MiddlewareInterface
 {
-    public function process(array $request, callable $next): array;
+    public function process(array $request, callable $next): mixed;
 }
