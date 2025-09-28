@@ -115,7 +115,7 @@ class Rpc
             // 处理请求 输出响应
             $json = $rpc->handle($this->request, function() use($instances, $class, $method, $args) {
                 try {
-                    return call_user_func_array([$instances[$class], $method], [$args]);
+                    return call_user_func_array([$instances[$class], $method], [...$args]);
                 } catch (BusinessException $exception) {
                     return ['code' => $exception->getCode(), 'msg' => $exception->getMessage()];
                 } catch (\Throwable $exception) {
