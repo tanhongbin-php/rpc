@@ -71,7 +71,6 @@ class Rpc
         static $instances = [];
         static $middlewares = [];
 
-        $logType = 'info';
         try {
             //接受请求数据
             $data = json_decode($data, true);
@@ -124,11 +123,10 @@ class Rpc
             $send = json_encode($json);
         } catch (BusinessException $exception) {
             $json = ['code' => $exception->getCode(), 'msg' => $exception->getMessage()];
-            $send = $this->log($connection, $logType, $data, $json);
+            $send = $this->log($connection, $data, $json);
         } catch (\Throwable $exception) {
             $json = ['code' => 501, 'msg' => ['errMessage'=>$exception->getMessage(), 'errCode'=>$exception->getCode(), 'errFile'=>$exception->getFile(), 'errLine'=>$exception->getLine()]];
-            $logType = 'error';
-            $send = $this->log($connection, $logType, $data, $json);
+            $send = $this->log($connection, $data, $json);
         }
         $connection->send($send);
     }
@@ -139,11 +137,11 @@ class Rpc
 //        Log::channel('rpc')->info($log);
     }
 
-    private function log(object $connection, string $logType, array $data, array $json) : string
+    private function log(object $connection, array $data, array $json) : string
     {
         try {
             $log = $connection->getRemoteIp() . ':' . $connection->getRemotePort() . " [rpc/log]";
-            Log::channel('default')->$logType($log, ['request' => $data, 'response' => $json]);
+            Log::error($log, ['request' => $data, 'response' => $json]);
         } catch (\Throwable $exception) {
             $json = ['code' => 502, 'msg' => $exception->getMessage()];
         }
