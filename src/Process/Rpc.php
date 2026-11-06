@@ -31,7 +31,7 @@ class Rpc
         $allowIps = $this->appConfig['ip'] ?? [];
         // 空数组 = 不限制；非空则白名单（支持 127.0.*.* / 127.0.0.*）
         if ($allowIps !== [] && !$this->ipAllowed($connection->getRemoteIp(), $allowIps)) {
-            $connection->send(json_encode(['code' => 301, 'msg' => 'connection not permitted'], JSON_UNESCAPED_UNICODE));
+            $connection->send(json_encode(['code' => 301, 'message' => 'connection not permitted'], JSON_UNESCAPED_UNICODE));
             $connection->close();
         }
     }
@@ -92,16 +92,16 @@ class Rpc
                 $json = $result;
             } elseif (is_string($result)) {
                 $decoded = json_decode($result, true);
-                $json = is_array($decoded) ? $decoded : ['code' => 0, 'msg' => 'ok', 'data' => $result];
+                $json = is_array($decoded) ? $decoded : ['code' => 0, 'message' => 'ok', 'data' => $result];
             } else {
-                $json = ['code' => 0, 'msg' => 'ok', 'data' => $result];
+                $json = ['code' => 0, 'message' => 'ok', 'data' => $result];
             }
         } catch (BusinessException $e) {
-            $json = ['code' => $e->getCode() ?: 400, 'msg' => $e->getMessage()];
+            $json = ['code' => $e->getCode() ?: 400, 'message' => $e->getMessage()];
         } catch (Throwable $e) {
             $json = [
                 'code' => 500,
-                'msg' => [
+                'message' => [
                     'errMessage' => $e->getMessage(),
                     'errCode' => $e->getCode(),
                     'errFile' => $e->getFile(),
@@ -209,12 +209,12 @@ class Rpc
             }
             // 非调试环境隐藏 500 详情
             if (($json['code'] ?? 0) >= 500 && !env('APP_DEBUG', false)) {
-                $json['msg'] = 'Server internal error';
+                $json['message'] = 'Server internal error';
                 $returnJson = (string)json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             }
             return $returnJson;
         } catch (Throwable $e) {
-            return (string)json_encode(['code' => 501, 'msg' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            return (string)json_encode(['code' => 501, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
     }
 }
