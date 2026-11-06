@@ -1,0 +1,15 @@
+{
+  "name": "thb/rpc",
+  "type": "library",
+  "license": "MIT",
+  "description": "Webman plugin: Text protocol RPC process with optional LogWrite attribute",
+  "keywords": ["webman", "rpc", "workerman"],
+  "require": {
+    "php": ">=8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Thb\\Rpc\\": "src"
+    }
+  }
+}
