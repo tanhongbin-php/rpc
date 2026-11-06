@@ -17,7 +17,7 @@ return [
                 'formatter' => [
                     'class' => Monolog\Formatter\LineFormatter::class,
                     'constructor' => [
-                        "[%datetime%] %channel%.%level_name%: %message%\n",
+                        null,
                         'Y-m-d H:i:s',
                         true,
                         true,
