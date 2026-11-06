@@ -31,8 +31,7 @@ class Rpc
         $allowIps = $this->appConfig['ip'] ?? [];
         // 空数组 = 不限制；非空则白名单（支持 127.0.*.* / 127.0.0.*）
         if ($allowIps !== [] && !$this->ipAllowed($connection->getRemoteIp(), $allowIps)) {
-            $connection->send(json_encode(['code' => 301, 'message' => 'connection not permitted'], JSON_UNESCAPED_UNICODE));
-            $connection->close();
+            $connection->ipBlack = true; // 标记黑名单，onMessage 时直接拒绝
         }
     }
 
@@ -40,6 +39,12 @@ class Rpc
     {
         /** @var array<string, object> */
         static $instances = [];
+        // 黑名单直接拒绝
+        if($connection->ipBlack ?? false) {
+            $connection->send(json_encode(['code' => 301, 'message' => 'connection not permitted'], JSON_UNESCAPED_UNICODE));
+            $connection->close();
+            return;
+        }
 
         $start = microtime(true);
         $request = [];
