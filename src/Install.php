@@ -28,7 +28,7 @@ class Install
             if (!is_dir($parent)) {
                 mkdir($parent, 0777, true);
             }
-            copy_dir(__DIR__ . "/../$source", base_path() . "/$dest", true);
+            copy_dir(__DIR__ . "/../$source", base_path() . "/$dest");
         }
     }
 
